@@ -1,1 +1,1 @@
-# RevPay-PaymentGateway-API
+# RevPay : Payment Gateway API
