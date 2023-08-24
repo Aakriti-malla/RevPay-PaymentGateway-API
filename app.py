@@ -72,17 +72,17 @@ def login():
 def create_account():
     current_user = get_jwt_identity()
     data = request.json
-    # company_id = data['company_id']
-    required_fields = ['bank_account_number', 'ifsc_code']
+    required_fields = ['bank_account_number', 'ifsc_code', 'transaction_type']
 
     if not all(field in data for field in required_fields):
-        return jsonify({"error": "Bank account number and IFSC code are required"}), 400
+        return jsonify({"error": "Bank account number, IFSC Code & 'Transaction Type are required"}), 400
     
     bank_account_number = data['bank_account_number']
     ifsc_code = data['ifsc_code']
+    transaction_type = data['transaction_type']
 
     cur = mysql.connection.cursor()
-    cur.execute("INSERT INTO bankaccounts (company_id, bank_account_number, ifsc_code) VALUES (%s, %s, %s)", (current_user, bank_account_number, ifsc_code))
+    cur.execute("INSERT INTO bankaccounts (company_id, bank_account_number, ifsc_code, transaction_type) VALUES (%s, %s, %s, %s)", (current_user, bank_account_number, ifsc_code, transaction_type))
     mysql.connection.commit()
     cur.close()
     
