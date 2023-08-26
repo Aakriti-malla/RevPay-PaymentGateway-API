@@ -88,5 +88,30 @@ def create_account():
     
     return jsonify({"message": "Bank account created successfully"})    
 
+# Route for transactions 
+@app.route('/transactions', methods=["POST"])
+@jwt_required()
+def create_transactions():
+    data = request.json
+    account_id = data['account_id']
+    beneficiary_account_number = data['beneficiary_account_number']
+    transaction_type = data['transaction_type']  
+    amount = data['amount']
+
+    cur = mysql.connection.cursor()
+    cur.execute("SELECT transaction_type FROM bankaccounts WHERE account_id = %s", (account_id,))
+    allowed_transaction_type = cur.fetchone()[0]
+    cur.close()
+
+    if allowed_transaction_type == 'BOTH' or allowed_transaction_type == transaction_type:
+        cur = mysql.connection.cursor()
+        cur.execute("INSERT INTO Transactions (account_id, beneficiary_account_number, transaction_type, amount) VALUES (%s, %s, %s, %s)", (account_id, beneficiary_account_number, transaction_type, amount))
+        mysql.connection.commit()
+        cur.close()
+
+        return jsonify({"message": "Transaction recorded successfully"})
+    else:
+        return jsonify({"error": f"Transaction type '{transaction_type}' not allowed for this account"}), 400
+
 if __name__ == '__main__':
     app.run()
