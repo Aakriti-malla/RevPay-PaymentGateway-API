@@ -67,19 +67,25 @@ def login():
         return jsonify({"message": "Invalid credentials"}), 401
 
 # Route to create a bank account
-@app.route('/create_account', methods=['POST'])
+@app.route('/add_account', methods=['POST'])
 @jwt_required()
-def create_account():
+def add_account():
     current_user = get_jwt_identity()
     data = request.json
-    required_fields = ['bank_account_number', 'ifsc_code', 'transaction_type']
+    required_fields = ['bank_account_number', 'ifsc_code']
 
     if not all(field in data for field in required_fields):
-        return jsonify({"error": "Bank account number, IFSC Code & 'Transaction Type are required"}), 400
+        return jsonify({"error": "Bank account number and IFSC Code are required"}), 400
     
     bank_account_number = data['bank_account_number']
     ifsc_code = data['ifsc_code']
-    transaction_type = data['transaction_type']
+    
+    if 'transaction_type' in data:
+        transaction_type = data['transaction_type']
+        allowed_transaction_types = ['CREDIT', 'DEBIT', 'BOTH']
+        
+        if transaction_type not in allowed_transaction_types:
+            return jsonify({"error": "Invalid 'transaction_type'. Allowed values are 'CREDIT', 'DEBIT' or 'BOTH"}), 400
 
     cur = mysql.connection.cursor()
     cur.execute("INSERT INTO bankaccounts (company_id, bank_account_number, ifsc_code, transaction_type) VALUES (%s, %s, %s, %s)", (current_user, bank_account_number, ifsc_code, transaction_type))
@@ -88,12 +94,13 @@ def create_account():
     
     return jsonify({"message": "Bank account created successfully"})    
 
+
 # Route for transactions 
 @app.route('/transactions', methods=["POST"])
 @jwt_required()
 def create_transactions():
     data = request.json
-    sender_account_id = data['sender_account_id']  
+    sender_account_id = get_jwt_identity()
     receiver_account_id = data['receiver_account_id']  
     transaction_type = data['transaction_type']  
     amount = data['amount']
@@ -106,10 +113,6 @@ def create_transactions():
     if sender_transaction_type == 'BOTH' or sender_transaction_type == transaction_type:
         cur = mysql.connection.cursor()
         cur.execute("UPDATE bankaccounts SET balance = balance - %s WHERE account_id = %s", (amount, sender_account_id))
-        mysql.connection.commit()
-        cur.close()
-
-        cur = mysql.connection.cursor()
         cur.execute("UPDATE bankaccounts SET balance = balance + %s WHERE account_id = %s", (amount, receiver_account_id))
         mysql.connection.commit()
         cur.close()
