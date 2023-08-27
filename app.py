@@ -94,37 +94,82 @@ def add_account():
     
     return jsonify({"message": "Bank account created successfully"})    
 
-
 # Route for transactions 
 @app.route('/transactions', methods=["POST"])
 @jwt_required()
 def create_transactions():
     data = request.json
-    sender_account_id = get_jwt_identity()
-    receiver_account_id = data['receiver_account_id']  
-    transaction_type = data['transaction_type']  
+    sender_account_id = data['sender_account_id']
+    receiver_account_number = data['receiver_account_number']
+    transaction_type = data['transaction_type']
     amount = data['amount']
 
     cur = mysql.connection.cursor()
-    cur.execute("SELECT transaction_type FROM bankaccounts WHERE account_id = %s", (sender_account_id,))
-    sender_transaction_type = cur.fetchone()[0]
+
+    # Get sender's activation status and transaction type
+    cur.execute("SELECT activation_status, transaction_type FROM bankaccounts WHERE account_id = %s", (sender_account_id,))
+    sender_info = cur.fetchone()
+
+    if not sender_info:
+        return jsonify({"error": "Sender's account not found"}), 400
+
+    sender_activation_status = sender_info[0]
+    sender_transaction_type = sender_info[1]
+
+    # Check if sender's account is active
+    if sender_activation_status != 'ACTIVE':
+        return jsonify({"error": "Sender's account is inactive. Transaction rejected."}), 400
+    elif receiver_account_number != 'ACTIVE':
+        return jsonify({"Reciever's Account INACTIVE. Transaction rejected."}), 400
+
+    # Check if the transaction type is valid for sender
+    if transaction_type == 'DEPOSIT' and sender_transaction_type not in ['DEBIT', 'BOTH']:
+        return jsonify({"error": "Transaction type 'DEPOSIT' not allowed for this sender account"}), 400
+    elif transaction_type == 'WITHDRAWAL' and sender_transaction_type not in ['CREDIT', 'BOTH']:
+        return jsonify({"error": "Transaction type 'WITHDRAWAL' not allowed for this sender account"}), 400
+
+    # Get receiver's activation status and transaction type
+    cur.execute("SELECT activation_status, transaction_type FROM bankaccounts WHERE bank_account_number = %s", (receiver_account_number,))
+    receiver_info = cur.fetchone()
+
+    if not receiver_info:
+        return jsonify({"error": "Receiver's account not found"}), 400
+
+    receiver_activation_status = receiver_info[0]
+    receiver_transaction_type = receiver_info[1]
+
+    # Check if receiver's account is active
+    if receiver_activation_status != 'ACTIVE':
+        return jsonify({"error": "Receiver's account is inactive. Transaction rejected."}), 400
+
+    # Check if the transaction type is valid for receiver
+    if transaction_type == 'DEPOSIT' and receiver_transaction_type not in ['CREDIT', 'BOTH']:
+        return jsonify({"error": "Transaction type 'DEPOSIT' not allowed for this receiver account"}), 400
+    elif transaction_type == 'WITHDRAWAL' and receiver_transaction_type not in ['DEBIT', 'BOTH']:
+        return jsonify({"error": "Transaction type 'WITHDRAWAL' not allowed for this receiver account"}), 400
+
+    # Check sender's balance for WITHDRAWAL
+    if transaction_type == 'WITHDRAWAL':
+        cur.execute("SELECT balance FROM bankaccounts WHERE account_id = %s", (sender_account_id,))
+        sender_balance = cur.fetchone()[0]
+
+        if sender_balance < amount:
+            return jsonify({"error": "Insufficient balance in the sender account"}), 400
+
+    # Update sender's and receiver's balances
+    if transaction_type == 'DEPOSIT':
+        cur.execute("UPDATE bankaccounts SET balance = balance - %s WHERE account_id = %s", (amount, sender_account_id))
+        cur.execute("UPDATE bankaccounts SET balance = balance + %s WHERE bank_account_number = %s", (amount, receiver_account_number))
+    elif transaction_type == 'WITHDRAWAL':
+        cur.execute("UPDATE bankaccounts SET balance = balance - %s WHERE account_id = %s", (amount, sender_account_id))
+        cur.execute("UPDATE bankaccounts SET balance = balance + %s WHERE bank_account_number = %s", (amount, receiver_account_number))
+
+    # Insert transaction record
+    cur.execute("INSERT INTO transactions (account_id, beneficiary_account_number, transaction_type, amount) VALUES (%s, %s, %s, %s)", (sender_account_id, receiver_account_number, transaction_type, amount))
+    mysql.connection.commit()
     cur.close()
 
-    if sender_transaction_type == 'BOTH' or sender_transaction_type == transaction_type:
-        cur = mysql.connection.cursor()
-        cur.execute("UPDATE bankaccounts SET balance = balance - %s WHERE account_id = %s", (amount, sender_account_id))
-        cur.execute("UPDATE bankaccounts SET balance = balance + %s WHERE account_id = %s", (amount, receiver_account_id))
-        mysql.connection.commit()
-        cur.close()
-
-        cur = mysql.connection.cursor()
-        cur.execute("INSERT INTO Transactions (account_id, beneficiary_account_number, transaction_type, amount) VALUES (%s, %s, %s, %s)", (sender_account_id, receiver_account_id, transaction_type, amount))
-        mysql.connection.commit()
-        cur.close()
-
-        return jsonify({"message": "Transaction recorded successfully"})
-    else:
-        return jsonify({"error": f"Transaction type '{transaction_type}' not allowed for this account"}), 400
+    return jsonify({"message": "Transaction recorded successfully"}), 200
 
 
 if __name__ == '__main__':
