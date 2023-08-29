@@ -196,11 +196,6 @@ def get_balance(account_id):
         cur.close()
         return jsonify({"error": "Account not found"}), 404
 
-    balance = account[5]
-    if balance is None:
-        cur.close()
-        return jsonify({"error": "Balance not available for this account"}), 404
-
     cur.close()
     
     return jsonify({"balance": account[5]}), 200
