@@ -3,6 +3,7 @@ from hashlib import sha256
 from flask_mysqldb import MySQL
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 import secrets
+import datetime
 
 app = Flask(__name__)
 
@@ -118,9 +119,7 @@ def create_transactions():
 
     # Check if sender's account is active
     if sender_activation_status != 'ACTIVE':
-        return jsonify({"error": "Sender's account is inactive. Transaction rejected."}), 400
-    elif receiver_account_number != 'ACTIVE':
-        return jsonify({"Reciever's Account INACTIVE. Transaction rejected."}), 400
+        return jsonify({"error": "Sender's account is INACTIVE. Transaction rejected!"}), 400
 
     # Check if the transaction type is valid for sender
     if transaction_type == 'DEPOSIT' and sender_transaction_type not in ['DEBIT', 'BOTH']:
@@ -155,6 +154,17 @@ def create_transactions():
 
         if sender_balance < amount:
             return jsonify({"error": "Insufficient balance in the sender account"}), 400
+        
+        # Withdrwal limit validation
+        today = datetime.datetime.now().date()
+        cur.execute("SELECT SUM(amount) FROM transactions WHERE account_id = %s AND transaction_type = 'WITHDRAWAL' AND DATE(created_at) = %s", (sender_account_id, today))
+        total_withdrawn_today = cur.fetchone()[0]
+
+        if total_withdrawn_today is None:
+            total_withdrawn_today = 0
+
+        if total_withdrawn_today + amount > 20000:
+            return jsonify({"error": "Withdrawal amount exceeds the daily limit of Rs. 20,000"}), 400
 
     # Update sender's and receiver's balances
     if transaction_type == 'DEPOSIT':
@@ -170,6 +180,28 @@ def create_transactions():
     cur.close()
 
     return jsonify({"message": "Transaction recorded successfully"}), 200
+
+# Route for fetching balance of an account
+@app.route("/balance/<int:account_id>", methods=["GET"])
+@jwt_required()
+def get_balance(account_id):
+    cur = mysql.connection.cursor()
+
+    # Check if account exists 
+    cur.execute("SELECT * FROM bankaccounts WHERE account_id = %s", (account_id,))
+    account = cur.fetchone()
+
+    if account is None:
+        return jsonify({"error": "Account not found"}), 404
+
+    balance = account[5]
+    if balance is None:
+        cur.close()
+        return jsonify({"error": "Balance not available for this account"}), 404
+
+    cur.close()
+    
+    return jsonify({"balance": account[5]}), 200
 
 
 if __name__ == '__main__':
