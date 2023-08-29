@@ -185,13 +185,15 @@ def create_transactions():
 @app.route("/balance/<int:account_id>", methods=["GET"])
 @jwt_required()
 def get_balance(account_id):
+    current_user = get_jwt_identity()
     cur = mysql.connection.cursor()
 
-    # Check if account exists 
-    cur.execute("SELECT * FROM bankaccounts WHERE account_id = %s", (account_id,))
+    # Check if account exists and belongs to the same company as the authenticated user
+    cur.execute("SELECT * FROM bankaccounts WHERE account_id = %s AND company_id = %s", (account_id, current_user))
     account = cur.fetchone()
 
     if account is None:
+        cur.close()
         return jsonify({"error": "Account not found"}), 404
 
     balance = account[5]
