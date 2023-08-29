@@ -18,7 +18,6 @@ app.config['JWT_SECRET_KEY'] = secret_key
 mysql = MySQL(app)
 jwt = JWTManager(app)
 
-
 # Route for Registration
 @app.route('/register', methods=['POST'])
 def register():
@@ -76,7 +75,7 @@ def add_account():
     required_fields = ['bank_account_number', 'ifsc_code']
 
     if not all(field in data for field in required_fields):
-        return jsonify({"error": "Bank account number and IFSC Code are required"}), 400
+        return jsonify({"error": "Bank account number and IFSC Code are required"}), 401
     
     bank_account_number = data['bank_account_number']
     ifsc_code = data['ifsc_code']
@@ -86,7 +85,7 @@ def add_account():
         allowed_transaction_types = ['CREDIT', 'DEBIT', 'BOTH']
         
         if transaction_type not in allowed_transaction_types:
-            return jsonify({"error": " Invalid 'transaction_type'. Allowed values are 'CREDIT', 'DEBIT' or 'BOTH' "}), 400
+            return jsonify({"error": " Invalid 'transaction_type'. Allowed values are 'CREDIT', 'DEBIT' or 'BOTH' "}), 401
 
     # Check if bank account number is already used
     cur = mysql.connection.cursor()
@@ -95,7 +94,7 @@ def add_account():
     cur.close()
 
     if existing_account:
-        return jsonify({"error": "Bank account already exists!"}), 400
+        return jsonify({"error": "Bank account already exists!"}), 401
 
     # Insert into db in case of new account data 
     cur = mysql.connection.cursor()
