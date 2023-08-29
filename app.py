@@ -86,8 +86,18 @@ def add_account():
         allowed_transaction_types = ['CREDIT', 'DEBIT', 'BOTH']
         
         if transaction_type not in allowed_transaction_types:
-            return jsonify({"error": "Invalid 'transaction_type'. Allowed values are 'CREDIT', 'DEBIT' or 'BOTH"}), 400
+            return jsonify({"error": " Invalid 'transaction_type'. Allowed values are 'CREDIT', 'DEBIT' or 'BOTH' "}), 400
 
+    # Check if bank account number is already used
+    cur = mysql.connection.cursor()
+    cur.execute("SELECT account_id FROM bankaccounts WHERE bank_account_number = %s", (bank_account_number,))
+    existing_account = cur.fetchone()
+    cur.close()
+
+    if existing_account:
+        return jsonify({"error": "Bank account already exists!"}), 400
+
+    # Insert into db in case of new account data 
     cur = mysql.connection.cursor()
     cur.execute("INSERT INTO bankaccounts (company_id, bank_account_number, ifsc_code, transaction_type) VALUES (%s, %s, %s, %s)", (current_user, bank_account_number, ifsc_code, transaction_type))
     mysql.connection.commit()
