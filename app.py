@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify
 from hashlib import sha256
 from flask_mysqldb import MySQL
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
+from decimal import Decimal
 import secrets
 import datetime
 
@@ -114,6 +115,8 @@ def create_transactions():
     transaction_type = data['transaction_type']
     amount = data['amount']
 
+    current_user = get_jwt_identity()
+
     cur = mysql.connection.cursor()
 
     # Check for negative amount
@@ -121,14 +124,19 @@ def create_transactions():
         return jsonify({"error": "Amount cannot be negative"}), 400
 
     # Get sender's activation status and transaction type
-    cur.execute("SELECT activation_status, transaction_type FROM bankaccounts WHERE account_id = %s", (sender_account_id,))
+    cur.execute("SELECT company_id, activation_status, transaction_type FROM bankaccounts WHERE account_id = %s", (sender_account_id,))
     sender_info = cur.fetchone()
 
     if not sender_info:
         return jsonify({"error": "Sender's account not found!"}), 400
 
-    sender_activation_status = sender_info[0]
-    sender_transaction_type = sender_info[1]
+    sender_company_id = sender_info[0]
+    sender_activation_status = sender_info[1]
+    sender_transaction_type = sender_info[2]
+
+    # User Authorisation check
+    if sender_company_id != current_user:
+        return jsonify({"error": "Unauthorised Transaction!"}), 400
 
     # Check if sender's account is active
     if sender_activation_status != 'ACTIVE':
@@ -160,13 +168,22 @@ def create_transactions():
     elif transaction_type == 'WITHDRAWAL' and receiver_transaction_type not in ['DEBIT', 'BOTH']:
         return jsonify({"error": "Transaction type 'WITHDRAWAL' not allowed for this receiver account"}), 400
 
-    # Check sender's balance for WITHDRAWAL
-    if transaction_type == 'WITHDRAWAL':
+    # Update sender's and receiver's balances
+    if transaction_type == 'DEPOSIT':
+        cur.execute("SELECT balance FROM bankaccounts WHERE account_id = %s", (sender_account_id,))
+        sender_balance = cur.fetchone()[0]
+
+        if sender_balance - Decimal(str(amount)) < 0:
+            return jsonify({"error": "Insufficient balance!"}), 400
+
+        cur.execute("UPDATE bankaccounts SET balance = balance - %s WHERE account_id = %s", (amount, sender_account_id))
+        cur.execute("UPDATE bankaccounts SET balance = balance + %s WHERE bank_account_number = %s", (amount, receiver_account_number))
+    elif transaction_type == 'WITHDRAWAL':
         cur.execute("SELECT balance FROM bankaccounts WHERE account_id = %s", (sender_account_id,))
         sender_balance = cur.fetchone()[0]
 
         if sender_balance < amount:
-            return jsonify({"error": "Insufficient balance in the sender account"}), 400
+            return jsonify({"error": "Insufficient balance!"}), 400
         
         # Withdrwal limit validation
         today = datetime.datetime.now().date()
@@ -179,11 +196,6 @@ def create_transactions():
         if total_withdrawn_today + amount > 20000:
             return jsonify({"error": "Withdrawal amount exceeds the daily limit of Rs. 20,000"}), 400
 
-    # Update sender's and receiver's balances
-    if transaction_type == 'DEPOSIT':
-        cur.execute("UPDATE bankaccounts SET balance = balance - %s WHERE account_id = %s", (amount, sender_account_id))
-        cur.execute("UPDATE bankaccounts SET balance = balance + %s WHERE bank_account_number = %s", (amount, receiver_account_number))
-    elif transaction_type == 'WITHDRAWAL':
         cur.execute("UPDATE bankaccounts SET balance = balance - %s WHERE account_id = %s", (amount, sender_account_id))
         cur.execute("UPDATE bankaccounts SET balance = balance + %s WHERE bank_account_number = %s", (amount, receiver_account_number))
 
