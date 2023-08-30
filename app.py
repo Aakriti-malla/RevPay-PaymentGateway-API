@@ -116,12 +116,16 @@ def create_transactions():
 
     cur = mysql.connection.cursor()
 
+    # Check for negative amount
+    if amount < 0:
+        return jsonify({"error": "Amount cannot be negative"}), 400
+
     # Get sender's activation status and transaction type
     cur.execute("SELECT activation_status, transaction_type FROM bankaccounts WHERE account_id = %s", (sender_account_id,))
     sender_info = cur.fetchone()
 
     if not sender_info:
-        return jsonify({"error": "Sender's account not found"}), 400
+        return jsonify({"error": "Sender's account not found!"}), 400
 
     sender_activation_status = sender_info[0]
     sender_transaction_type = sender_info[1]
@@ -148,7 +152,7 @@ def create_transactions():
 
     # Check if receiver's account is active
     if receiver_activation_status != 'ACTIVE':
-        return jsonify({"error": "Receiver's account is inactive. Transaction rejected."}), 400
+        return jsonify({"error": "Receiver's account is INACTIVE. Transaction rejected!"}), 400
 
     # Check if the transaction type is valid for receiver
     if transaction_type == 'DEPOSIT' and receiver_transaction_type not in ['CREDIT', 'BOTH']:
@@ -166,7 +170,7 @@ def create_transactions():
         
         # Withdrwal limit validation
         today = datetime.datetime.now().date()
-        cur.execute("SELECT SUM(amount) FROM transactions WHERE account_id = %s AND transaction_type = 'WITHDRAWAL' AND DATE(created_at) = %s", (sender_account_id, today))
+        cur.execute("SELECT SUM(amount) FROM transactions WHERE account_id = %s AND transaction_type = 'WITHDRAWAL' AND DATE(transaction_date) = %s", (sender_account_id, today))
         total_withdrawn_today = cur.fetchone()[0]
 
         if total_withdrawn_today is None:
