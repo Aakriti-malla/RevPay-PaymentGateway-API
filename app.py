@@ -214,16 +214,29 @@ def get_balance(account_id):
     cur = mysql.connection.cursor()
 
     # Check if account exists and belongs to the same company as the authenticated user
-    cur.execute("SELECT * FROM bankaccounts WHERE account_id = %s AND company_id = %s", (account_id, current_user))
+    cur.execute("SELECT activation_status, company_id, balance FROM bankaccounts WHERE account_id = %s", (account_id,))
     account = cur.fetchone()
 
     if account is None:
         cur.close()
         return jsonify({"error": "Account not found"}), 404
 
+    activation_status = account[0]
+    account_company_id = account[1]
+    account_balance = account[2]
+
+    if activation_status != 'ACTIVE':
+        cur.close()
+        return jsonify({"error": "Account is INACTIVE"}), 400
+
+    if account_company_id != current_user:
+        cur.close()
+        return jsonify({"error": "Unauthorised access to account"}), 400
+
     cur.close()
-    
-    return jsonify({"balance": account[5]}), 200
+
+    return jsonify({"balance": account_balance}), 200
+
 
 
 if __name__ == '__main__':

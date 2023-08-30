@@ -1,0 +1,193 @@
+/transaction
+
+1. Negative Amount Check:
+
+{
+  "sender_account_id": 1,
+  "receiver_account_number": 2222222222,
+  "transaction_type": "DEPOSIT",
+  "amount": -100
+}
+
+Output :
+
+{
+  "error": "Amount cannot be negative"
+}
+
+2. Unauthorised Transaction Check:
+
+{
+  "sender_account_id": 3,
+  "receiver_account_number": 2222222222,
+  "transaction_type": "DEPOSIT",
+  "amount": 1000
+}
+
+Output:
+
+{
+  "error": "Unauthorised Transaction!"
+}
+
+3. Inactive Sender Account Check:
+
+{
+  "sender_account_id": 10,
+  "receiver_account_number": 2222222222,
+  "transaction_type": "DEPOSIT",
+  "amount": 1000
+}
+
+Output:
+
+{
+  "error": "Sender's account is INACTIVE. Transaction rejected!"
+}
+
+4.  Receiver Account Not Found Check:
+
+{
+  "sender_account_id": 5,
+  "receiver_account_number": 9999999999,
+  "transaction_type": "DEPOSIT",
+  "amount": 1000
+}
+
+Output:
+
+{
+  "error": "Receiver's account not found"
+}
+
+5. Withdrawal Amount Exceeds Limit Check:
+
+{
+  "sender_account_id": 12,
+  "receiver_account_number": 2222222222,
+  "transaction_type": "WITHDRAWAL",
+  "amount": 20000
+} 
+
+Output: (After executing second time)
+
+{
+    "error": "Withdrawal amount exceeds the daily limit of Rs. 20,000"
+}
+
+6. Inactive Receiver Account Check:
+
+{
+  "sender_account_id": 5,
+  "receiver_account_number": 1902345678,
+  "transaction_type": "DEPOSIT",
+  "amount": 1000
+}
+
+Output:
+
+{
+    "error": "Receiver's account is INACTIVE. Transaction rejected!"
+}
+
+7. Invalid Transaction Type for Receiver Check:
+
+{
+  "sender_account_id": 5,
+  "receiver_account_number": 5678901234,
+  "transaction_type": "DEPOSIT",
+  "amount": 1000
+}
+
+Output:
+
+{
+  "error": "Transaction type 'DEPOSIT' not allowed for this receiver account"
+}
+
+8. Insufficient Balance Check:
+
+{
+  "sender_account_id": 9,
+  "receiver_account_number": 2222222222,
+  "transaction_type": "DEPOSIT",
+  "amount": 6629351.90
+}
+
+Output:
+
+{
+    "error": "Insufficient balance!"
+}
+
+9. Invalid Transaction Type for Sender Check:
+
+{
+  "sender_account_id": 7,
+  "receiver_account_number": 2222222222,
+  "transaction_type": "WITHDRAWAL",
+  "amount": 1000
+}
+
+Output:
+
+{
+  "error": "Transaction type 'WITHDRAWAL' not allowed for this sender account"
+}
+
+10. Successful Transaction:
+
+{
+  "sender_account_id": 12,
+  "receiver_account_number": 1234567890,
+  "transaction_type": "DEPOSIT",
+  "amount": 100000
+}
+
+Output:
+
+{
+    "message": "Transaction recorded successfully"
+}
+
+/balance
+
+1. Unauthorised Check
+
+http://127.0.0.1:5000/balance/1
+
+Output:
+
+{
+    "error": "Unauthorised access to account"
+}
+
+2. balance
+
+http://127.0.0.1:5000/balance/9
+
+Output:
+
+{
+    "balance": "5630351.90"
+}
+
+3. Inactive account
+
+http://127.0.0.1:5000/balance/10
+
+Output:
+
+{
+    "error": "Account is INACTIVE"
+}
+
+4. Account not found
+
+http://127.0.0.1:5000/balance/20
+
+Output:
+
+{
+    "error": "Account not found"
+}
