@@ -1,0 +1,37 @@
+Table businesses-
+
++--------------+--------------+------+-----+---------+----------------+
+| Field        | Type         | Null | Key | Default | Extra          |
++--------------+--------------+------+-----+---------+----------------+
+| company_id   | int          | NO   | PRI | NULL    | auto_increment |
+| company_name | varchar(100) | NO   |     | NULL    |                |
+| username     | varchar(50)  | NO   |     | NULL    |                |
+| password     | varchar(100) | NO   |     | NULL    |                |
++--------------+--------------+------+-----+---------+----------------+
+
+Table bankaccounts-
+
++---------------------+---------------------------+------+-----+---------+----------------+
+| Field               | Type                      | Null | Key | Default | Extra          |
++---------------------+---------------------------+------+-----+---------+----------------+
+| account_id          | int                       | NO   | PRI | NULL    | auto_increment |
+| company_id          | int                       | NO   | MUL | NULL    |                |
+| bank_account_number | bigint                    | NO   |     | NULL    |                |
+| ifsc_code           | varchar(8)                | NO   |     | NULL    |                |
+| activation_status   | enum('ACTIVE','INACTIVE') | NO   |     | NULL    |                |
+| balance             | decimal(10,2)             | YES  |     | NULL    |                |
+| transaction_type    | varchar(10)               | NO   |     | BOTH    |                |
++---------------------+---------------------------+------+-----+---------+----------------+
+
+Table transactions
+
++----------------------------+------------------------------+------+-----+-------------------+-------------------+
+| Field                      | Type                         | Null | Key | Default           | Extra             |
++----------------------------+------------------------------+------+-----+-------------------+-------------------+
+| transaction_id             | int                          | NO   | PRI | NULL              | auto_increment    |
+| account_id                 | int                          | YES  | MUL | NULL              |                   |
+| beneficiary_account_number | bigint                       | YES  |     | NULL              |                   |
+| transaction_type           | enum('DEPOSIT','WITHDRAWAL') | YES  |     | NULL              |                   |
+| amount                     | decimal(10,2)                | YES  |     | NULL              |                   |
+| transaction_date           | timestamp                    | YES  |     | CURRENT_TIMESTAMP | DEFAULT_GENERATED |
++----------------------------+------------------------------+------+-----+-------------------+-------------------+
